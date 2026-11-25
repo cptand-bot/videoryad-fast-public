@@ -1,0 +1,238 @@
+
+#
+# (`vybor.jsonl`), авторский банк кликбейтных формулировок (`bank.txt`),
+# `template/` и `cloud/` с этим списком. Нашёл файл, которого здесь нет, —
+# `template/` или `cloud/`: `sync_assembler.sh` раскатывает ЭТИ ДВЕ ПАПКИ на
+# `template/upakovka_lib/` ЗДЕСЬ БОЛЬШЕ НЕТ И БЫТЬ НЕ ДОЛЖНО (2026-11-09).
+# Добавил НАСТОЯЩИЙ боевой файл (новый инструмент конвейера)? Впиши его сюда
+# Зачем. Второй сборщик (арсенал, `fullcycle/`) разрабатывается ОТДЕЛЬНОЙ
+# Как работает. Перед раскаткой `sync_assembler.sh` сверяет содержимое
+# МАНИФЕСТ БОЕВОГО КОДА — что разрешено раскатывать в облако (2026-10-23)
+# НОВЫЙ НАКОПИТЕЛЬ СЮДА НЕ ВПИСЫВАТЬ. Он не свалит раскатку — предохранитель
+# Путь — от корня скилла, ровно как печатает `find template cloud -type f`.
+# Теперь папку не везёт ни rsync, ни предохранитель её не считает, поэтому
+# Это накопители упаковки и превью: его личный выбор заголовков и надписей
+# вкладкой, и его код в боевую сборку попадать не должен. Единственная дорога,
+# все восемь целей, и с этого момента новый код работает в каждом ролике.
+# журнал, словарь, состояние дашборда. Десять таких файлов стояли в
+# закрытия 14.10 (в публичном репозитории нет ключей, озвучки, рабочих
+# заметок и текста сценария).
+# и в облако оно не едет.
+# кодом и перестанет что-либо значить.
+# манифест не должен обещать того, чего мы не везём: иначе он разойдётся с
+# манифесте и уезжали в ПУБЛИЧНЫЕ репозитории открытым текстом — против
+# ограничена: в `fullcycle/` клади что угодно, туда предохранитель не смотрит
+# одной строкой — это осознанное действие диспетчера, а не формальность.
+# по которой он туда физически может попасть, — файл, положенный в
+# раскатка ОСТАНОВЛЕНА, файл назван. Разработка арсенала при этом ничем не
+# эту папку пропускает намеренно.
+cloud/README-CLOUD.md
+cloud/base_harvest.py
+cloud/base_video.py
+cloud/battle_manifest.txt
+cloud/busy.sh
+cloud/caps_in.py
+cloud/classify_prompt.md
+cloud/cloud_pipeline.py
+cloud/config.sh
+cloud/dash.sh
+cloud/clean_clones.sh
+cloud/dash_watch.sh
+cloud/fetch_report.py
+cloud/fetch_shard.py
+cloud/get.sh
+cloud/harvest.sh
+cloud/harvest_get.sh
+cloud/harvest_video.sh
+cloud/merge_shards.py
+cloud/narration_in.py
+cloud/notify.sh
+cloud/ozvuchka_cloud.sh
+cloud/ozvuchka_job.py
+cloud/preflight.sh
+cloud/run.sh
+cloud/setup_rezerv.sh
+cloud/shard_scenes.py
+cloud/ship.sh
+cloud/switch_account.sh
+cloud/sync_assembler.sh
+cloud/traffic.sh
+cloud/uborka.sh
+cloud/use_account.sh
+cloud/va.sh
+cloud/workflows/base-harvest.yml
+cloud/workflows/base-video.yml
+cloud/workflows/cards-render.yml
+cloud/workflows/ozvuchka.yml
+cloud/workflows/videoryad-cloud.yml
+cloud/youtube_upload.py
+template/accept_scenes.py
+template/adopt_cloud.py
+template/ai_batch.py
+template/autodedup.py
+template/autofix_scenes.py
+template/avtorskoe.py
+template/ban_file.py
+template/baza_snos.py
+template/bliznecy.py
+template/brak.py
+template/build_capcut_draft.py
+template/build_clips_1080.py
+template/build_overlays.py
+template/build_ticker.py
+template/build_usage_log.py
+template/captions_from_srt.py
+template/captions_shard.py
+template/cards_keep.py
+template/cards_queue.py
+template/check_lead.py
+template/check_library_updates.py
+template/check_overlay_overlap.py
+template/check_pins.py
+template/chernovoy_srt.py
+template/chitaemost.py
+template/citaty_zazor.py
+template/codex_ask.sh
+template/codex_brief.py
+template/codex_raskhod.py
+template/contact_sheet.py
+template/crop_brand.py
+template/data/places_ua_theater.json
+template/deti_gate.py
+template/dossier_otbor.py
+template/dossier_use.py
+template/element_put.py
+template/faza.sh
+template/fetch_assets_news.py
+template/fetch_maps.py
+template/fetch_parallel.py
+template/file_away_segodnia.py
+template/final_sheet.py
+template/geo_opyt.py
+template/folder_sheet.py
+template/fonts/ArialBlack.ttf
+template/fonts/Arimo-Bold.ttf
+template/fonts/Montserrat-Bold.ttf
+template/fonts/OFL-arimo-tinos-oswald-montserrat-robotocondensed.txt
+template/fonts/Oswald-Bold.ttf
+template/fonts/README.md
+template/fonts/RobotoCondensed-Bold.ttf
+template/fonts/Tinos-Bold.ttf
+template/fx/fx_flare.png
+template/fx/haze.mp4
+template/fx/particles.mp4
+template/fx/preset-news-max.json
+template/fx/preset-news.json
+template/fx_inset.py
+template/fx_put.py
+template/fx_rings.py
+template/fx_sheet.py
+template/fx_subscribe.py
+template/fx_subscribe2.py
+template/fx_trans.py
+template/fx_trans5.py
+template/geo_links.py
+template/grab_stream_frame.py
+template/grab_video_frame.py
+template/imena_pod_kadrom.py
+template/kadry_klon.py
+template/karta_brifing_atoms.py
+template/karta_brifing_data/base_map.jpg
+template/karta_brifing_data/meta.json
+template/karta_brifing_news.py
+template/kartochki_batch.py
+template/kartochki_srazu.py
+template/kino_dok_text.py
+template/kluchi.py
+template/konkretika.py
+template/latinka.py
+template/merge_work.py
+template/muzyka.py
+template/nadpis_maska.py
+template/nadpisi_spread.py
+template/nakopiteli.py
+template/nalichie.py
+template/naydi.py
+template/nuli.sh
+template/o_chem.py
+template/obyazatelno.py
+template/overlay_fit.py
+template/ozvuchka.py
+template/pair_sheet.py
+template/palitra.py
+template/peredacha.py
+template/phase.py
+template/place_lookup.py
+template/phash_backfill.py
+template/phash_ban.py
+template/photo_quality.py
+template/podmena.py
+template/povtor_kadrov.py
+template/pravki.py
+template/proverki.py
+template/agent_gate.py
+template/model_gate.py
+template/modeli.py
+template/prevyu.py
+template/prevyu_klon.py
+template/prevyu_text.py
+template/prizyv.py
+template/proverka_fayla.py
+template/query_lint.py
+template/quote_card.py
+template/razlozhit_rerayt.py
+template/refetch.py
+template/rejections.py
+template/rerayt_storozh.sh
+template/review.py
+template/revizia_kartochek.py
+template/rewrite_brief.py
+template/rewrite_cut.py
+template/rewrite_fix.py
+template/rewrite_lint.py
+template/role_icons.py
+template/safe_area.py
+template/scenes_from_srt.py
+template/scenes_klon.py
+template/sdacha_proverka.py
+template/search_options.py
+template/selfcheck.py
+template/sfx/ding.mp3
+template/sfx/mashinka.mp3
+template/sfx/pop.mp3
+template/sfx/pshik.mp3
+template/sfx/whoosh.mp3
+template/sfx/zatvor.mp3
+template/sluzhebnye.py
+template/smena_pora.py
+template/smoke_dveri.sh
+template/srt_keep.py
+template/statistika.py
+template/storozh.py
+template/strana_gate.py
+template/style_card.py
+template/sverka_kartochek.py
+template/svyazka.py
+template/take_folder.py
+template/tema_start.py
+template/tg_media.py
+template/tg_overlay_fill.py
+template/tikho.sh
+template/unikalizaciya.py
+template/upakovka.py
+template/upakovka_dash.py
+template/voice_note.py
+template/vybor_svod.py
+template/whisper_derzhi.sh
+template/wm_sheet.py
+template/yofikator.py
+template/zal_core.py
+template/zal_fable3.py
+template/zal_scene.py
+template/zal_scenes2.py
+template/zamechanie.py
+template/zamer_klyuchey.py
+template/zamorozka.py
+template/zanyato.py
+template/zhurnal_zamen.py
+template/zoom.py

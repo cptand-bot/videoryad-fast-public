@@ -1,0 +1,306 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""ПЯТЬ ПРЕВЬЮ ДЛЯ YOUTUBE ПО ТЕМЕ СТАТЬИ (07.11.2026).
+
+    python3 prevyu.py "<папка темы>"          # одна тема
+    python3 prevyu.py "<папка дня>" --all     # все темы дня
+
+Его ручной шаг, который он делал в чате последним: после описания и
+заголовков вставлял в ту же тему промпт на превью. Промпт здесь ДОСЛОВНО
+его, менять формулировки нельзя — он проверен работой.
+
+КАК ЭТО РАБОТАЕТ. Внешний агент (Codex) умеет рисовать: инструмент
+`image_gen`. Сохранить файл сам он НЕ МОЖЕТ — у него файловая система
+только для чтения, — но картинка ложится в `generated_images/` ВНУТРИ
+каталога того аккаунта агента, которым мы его позвали, и мы забираем её
+оттуда. Проверено запуском 07.11. Каталог считается от `CODEX_HOME` /
+`CODEX_ACCOUNT` тем же механизмом, что в `codex_ask.sh` (см. `_codex_home`).
+
+ЧТО КЛАДЁТ: `превью-варианты/ПРЕВЬЮ-1.png` … `-5.png` — В ОТДЕЛЬНУЮ
+ПОДПАПКУ (07.11, его слово: «чтобы не загромождать всю эту срань в папке,
+генерированные изображения ложи в отдельную папку, чтобы она не мелькала»).
+В корне папки темы лежит только ГОТОВОЕ превью с надписями — рядом с
+озвучкой, чтобы его было видно сразу. Видео и прочие файлы не трогает.
+"""
+import argparse
+import glob
+# СЛУЖЕБНОЕ ИМЯ — ОДНА ПРОВЕРКА НА ВЕСЬ СБОРЩИК (15.11, sluzhebnye.py):
+# шестой инструмент той же семьи. Статья «…ответ Москвы 5 минут.txt»
+# выбрасывалась как служебная по подстроке «ОТВЕТ».
+import importlib.util as _ilu
+_sp = _ilu.spec_from_file_location(
+    "sluzhebnye", __import__("os").path.join(
+        __import__("os").path.dirname(__import__("os").path.abspath(__file__)),
+        "sluzhebnye.py"))
+_sl = _ilu.module_from_spec(_sp); _sp.loader.exec_module(_sl)
+sluzhebnoe = _sl.sluzhebnoe
+
+import os
+import shutil
+import subprocess
+import sys
+import time
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+VARIANTS = "превью-варианты"        # подпапка сырых вариантов
+SKIP_TXT = ("ЗАДАНИЕ", "БРИФ", "ОТВЕТ", "ПРОМПТ", "РЕРАЙТ", "ДОСЬЕ",
+            "АУДИТ", "УПАКОВКА", "ГЕОРАДАР", "ПРЕВЬЮ")
+
+# ЕГО ПРОМПТ, ДОСЛОВНО. Ни слова не переписывать.
+PROMPT_TAIL = """Сделай кликбейтное превью для YouTube. В светлых тонах, без надписей.
+Лица должны выражать ярко выраженные эмоции.
+Пять вариантов, каждый вариант — отдельное изображение. Не в одном
+изображении пять вариантов, а один вариант — одна картинка.
+делать строго по теме написанной статьи.
+Не нарушая правил и не допуская появления на изображении детей и подростков.
+Не размещать на превью Шольца, Стармера, Трюдо, Орбан и остальных
+политиков которые уже сейчас не актуальны. Никаких ноунеймов на превью"""
+
+
+def read_text(path):
+    raw = open(path, "rb").read()
+    for enc in ("utf-8-sig", "utf-8", "cp1251", "koi8-r"):
+        try:
+            return raw.decode(enc)
+        except UnicodeDecodeError:
+            continue
+    return raw.decode("cp1251", "replace")
+
+
+def find_text(folder):
+    c = [os.path.join(folder, n) for n in os.listdir(folder)
+         if n.lower().endswith(".txt")
+         and not sluzhebnoe(n, SKIP_TXT)]
+    return max(c, key=os.path.getsize) if c else ""
+
+
+def _codex_home():
+    """Каталог аккаунта агента — ровно так же, как его выбирает `codex_ask.sh`.
+
+    МИНА, ПОЙМАННАЯ ЖИВЬЁМ 09.11.2026 НА ТРЕТЬЕМ ЭКЗЕМПЛЯРЕ СТАТЬИ ПО
+    ТЕМЕ «ПРИШЛА ЖЁСТКАЯ РАСПЛАТА»: путь к картинкам был зашит строкой
+    `~/.codex/generated_images`, а все статьи и упаковка с 08.11 идут на
+    ВТОРОЙ аккаунт агента (`CODEX_ACCOUNT=eva`) — у него своя папка
+    `~/.codex-eva`, и рисует он туда. Снаружи это выглядело как «агент не
+    нарисовал»: пять превью существовали, а `fresh_images` искала их в
+    пустом каталоге основного аккаунта и честно отвечала «картинок не
+    появилось». Вкладка в тот день обошлась симлинком
+    `~/.codex-eva/generated_images → ~/.codex/generated_images`, но обход
+    умирает на третьем аккаунте и при переносе машины, причём МОЛЧА.
+
+    Механизм выбора берём ОДИН В ОДИН у `codex_ask.sh`, своего не
+    изобретаем: сильнее всего готовый `CODEX_HOME`, иначе
+    `CODEX_ACCOUNT` → `~/.codex-<имя>` (и только если там лежит
+    `auth.json`, то есть аккаунт действительно заведён), иначе
+    `~/.codex` — поведение как было до правки.
+    """
+    home = os.environ.get("CODEX_HOME")
+    if home:
+        return os.path.expanduser(home)
+    acct = os.environ.get("CODEX_ACCOUNT")
+    if acct:
+        cand = os.path.expanduser("~/.codex-%s" % acct)
+        if os.path.exists(os.path.join(cand, "auth.json")):
+            return cand
+    return os.path.expanduser("~/.codex")
+
+
+def gen_dirs():
+    """Каталоги, в которых ищем свежие картинки. Первый — выбранного аккаунта.
+
+    ОСТАЛЬНЫЕ АККАУНТЫ ТОЖЕ СМОТРИМ, И ЭТО НЕ ПЕРЕСТРАХОВКА: у
+    `codex_ask.sh` есть собственное переключение на резервный аккаунт,
+    когда пятичасовое окно основного израсходовано на 80%. Переменную он
+    экспортирует ВНУТРИ СЕБЯ, и мы, запустив его подпроцессом, об этом
+    не знаем — то есть тот же самый дефект вернулся бы при пустой
+    `CODEX_ACCOUNT`. Лишние каталоги ничем не грозят: `fresh_images`
+    отбирает файлы по ВРЕМЕНИ и ничего старше начала нашего запроса не
+    возьмёт.
+    """
+    dirs = [os.path.join(_codex_home(), "generated_images")]
+    seen = {os.path.realpath(dirs[0])}
+    for d in sorted(glob.glob(os.path.expanduser("~/.codex*/generated_images"))):
+        r = os.path.realpath(d)
+        if r not in seen:
+            seen.add(r)
+            dirs.append(d)
+    return dirs
+
+
+def fresh_images(since):
+    """Картинки, появившиеся у агента ПОСЛЕ начала нашего запроса.
+    Берём по времени файла, а не по имени: имя у него случайное."""
+    out = []
+    for g in gen_dirs():
+        for f in glob.glob(os.path.join(g, "*", "*.png")):
+            try:
+                if os.path.getmtime(f) >= since:
+                    out.append(f)
+            except OSError:
+                continue
+    return sorted(out, key=os.path.getmtime)
+
+
+def _kanal_iz_puti(folder):
+    """Канал — сегмент сразу после каталога НОВОСТИ (правило скилла)."""
+    ч = os.path.abspath(folder).replace("\\", "/").split("/")
+    for i, x in enumerate(ч):
+        if x.upper() == "НОВОСТИ" and i + 1 < len(ч):
+            return ч[i + 1]
+    return ""
+
+
+def _donory_temy(folder):
+    """Папки той же темы и того же дня на «5 МИНУТ» и ПЛАНЕТЕ, где уже есть
+    нарисованные варианты. Номер темы («2-…») важнее её названия: у каналов
+    оно пишется по-разному."""
+    import glob as _g
+    import re as _re
+    ч = os.path.abspath(folder).replace("\\", "/").split("/")
+    try:
+        i = [x.upper() for x in ч].index("НОВОСТИ")
+    except ValueError:
+        return []
+    номер = _re.match(r"\s*(\d+)\s*-", ч[-1])
+    найдено = []
+    for канал in ("5 МИНУТ", "ПЛАНЕТА"):
+        день = "/".join(ч[:i + 1] + [канал] + ч[i + 2:-1])
+        if not os.path.isdir(день):
+            continue
+        for d in sorted(os.listdir(день)):
+            путь = os.path.join(день, d)
+            if not os.path.isdir(путь):
+                continue
+            свой = (номер and _re.match(r"\s*%s\s*-" % номер.group(1), d))
+            if not свой:
+                continue
+            if _g.glob(os.path.join(путь, "превью-варианты", "ПРЕВЬЮ-*.png")):
+                найдено.append(путь)
+    return найдено
+
+
+def do_one(folder, keep=5, pravka="", start=1):
+    """ПЯТЬ ПРЕВЬЮ. `pravka` — его замечание с дашборда (текстом или
+    наговорённое голосом): оно идёт ПОСЛЕ дословного промпта и весит
+    больше общих указаний. `start` — с какого номера нумеровать файлы,
+    чтобы перегенерация НЕ ЗАТИРАЛА уже показанные варианты (10.11)."""
+    # НОВЫЕ ПРЕВЬЮ РИСУЮТСЯ ТОЛЬКО НА «5 МИНУТ» И ПЛАНЕТЕ (11.11, его слово
+    # дословно: «если было задание брать те превьюшки, которые вчера не
+    # вошли… Зачем генерировать новые? Не надо генерировать новые. И так
+    # нагенерирована целая куча. Брать старые только незаюзанные»).
+    # Правило жило в памяти и в `prevyu_klon.py` (он сам печатает «генерация
+    # НЕ запускалась»), а ЗДЕСЬ гейта не было — и прямой вызов `prevyu.py`
+    # на клон-канале спокойно жёг заход агента и рисовал пятый ряд поверх
+    # четырёх неиспользованных. Теперь отказ, с готовой командой клонирования.
+    # С 13.11 ГЕНЕРАЦИЯ ТОЛЬКО НА «5 МИНУТ», ПЛАНЕТА ЖИВЁТ ЗЕРКАЛОМ — его
+    # прямое слово: «на канал 5 минут генерируется всё новое, а на Планету ты
+    # просто ставишь зеркалку, отзеркаливаешь. Не нужно будет делать ещё три
+    # комплекта: три новых и три зеркальных». То есть на день из трёх тем
+    # рисуется ТРИ комплекта по пять вариантов, а не шесть.
+    # Обход — только его словом: VIDEORYAD_PREVYU_PLANETA=1.
+    _БЕЛЫЙ = ("5 МИНУТ",) if os.environ.get("VIDEORYAD_PREVYU_PLANETA") != "1" \
+        else ("5 МИНУТ", "ПЛАНЕТА")
+    _ch = _kanal_iz_puti(folder)
+    if _ch and _ch.upper().replace("Ё", "Е") not in _БЕЛЫЙ:
+        _don = _donory_temy(folder)
+        print("  ✗ НА КАНАЛЕ «%s» НОВЫЕ ПРЕВЬЮ НЕ РИСУЮТСЯ." % _ch)
+        print("    Берём НЕИСПОЛЬЗОВАННЫЕ варианты донора — он выбирает 1-2 из "
+              "пяти, остальные ждут клона.")
+        if _don:
+            for _d in _don:
+                print("    python3 ~/.claude/skills/news-video/template/"
+                      "prevyu_klon.py \\\n      \"%s\" \\\n      \"%s\" --номер <N>"
+                      % (_d, folder))
+        else:
+            print("    Донорской темы того же дня не нашлось — скажи "
+                  "координатору, сам НЕ генерирую.")
+        return False
+
+    src = find_text(folder)
+    if not src:
+        print("  ✗ нет текста статьи: %s" % folder)
+        return False
+    text = read_text(src)
+    title = os.path.basename(folder)
+
+    task = ("СТАТЬЯ (по ней делается превью):\n"
+            "======================================================\n"
+            + text[:6000] +
+            "\n======================================================\n\n"
+            + PROMPT_TAIL +
+            (("\n\nЕГО ПРАВКИ К ПРОШЛОМУ РЯДУ — ВАЖНЕЕ ОБЩИХ УКАЗАНИЙ ВЫШЕ:\n"
+              + pravka.strip()
+              + "\nПрошлые пять вариантов ему не подошли. Новые должны быть "
+                "ДРУГИМИ по замыслу, а не перерисовкой тех же кадров.")
+             if pravka.strip() else "") +
+            "\n\nСгенерируй ВСЕ ПЯТЬ картинок инструментом image_gen, по одной "
+            "за раз. После каждой напиши одну строку: «готово N из пяти».\n"
+            "Сохранять файлы никуда не нужно — я заберу их сам.")
+    os.makedirs(os.path.join(folder, VARIANTS), exist_ok=True)
+    tz = os.path.join(folder, VARIANTS,
+                      "ЗАДАНИЕ-ПРЕВЬЮ.txt" if start <= 1
+                      else "ЗАДАНИЕ-ПРЕВЬЮ-ЕЩЁ-%d.txt" % start)
+    open(tz, "w", encoding="utf-8").write(task)
+
+    print("  %s — рисую пять превью…" % title)
+    t0 = time.time() - 2
+    subprocess.run(["bash", os.path.join(HERE, "codex_ask.sh"), tz],
+                   capture_output=True, text=True, timeout=3600)
+    got = fresh_images(t0)
+    if not got:
+        print("  ✗ картинок не появилось — проверь ЗАДАНИЕ-ПРЕВЬЮ.ОТВЕТ.txt")
+        return False
+    vdir = os.path.join(folder, VARIANTS)
+    os.makedirs(vdir, exist_ok=True)
+    n = 0
+    for i, f in enumerate(got[:keep], start):
+        dst = os.path.join(vdir, "ПРЕВЬЮ-%d.png" % i)
+        shutil.copy2(f, dst)
+        n += 1
+    print("  ✓ превью: %d шт. в %s/ (%s)"
+          % (n, VARIANTS, ", ".join("%.1f МБ" % (os.path.getsize(
+              os.path.join(vdir, "ПРЕВЬЮ-%d.png" % i)) / 1048576)
+              for i in range(start, start + n))))
+    return n > 0
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("folder")
+    ap.add_argument("--all", action="store_true")
+    ap.add_argument("--keep", type=int, default=5)
+    ap.add_argument("--pravka", default="",
+                    help="его замечание к прошлому ряду (текст с дашборда)")
+    ap.add_argument("--start", type=int, default=0,
+                    help="с какого номера нумеровать; 0 — продолжить "
+                         "существующие, не затирая их")
+    a = ap.parse_args()
+    root = os.path.abspath(a.folder)
+    if a.all:
+        targets = [os.path.join(root, d) for d in sorted(os.listdir(root))
+                   if os.path.isdir(os.path.join(root, d))]
+        targets = [t for t in targets if find_text(t)]
+    else:
+        targets = [root]
+    print("ПРЕВЬЮ: %d тем" % len(targets))
+    def _start(folder):
+        if a.start:
+            return a.start
+        if not a.pravka:
+            return 1
+        # ПРОДОЛЖАЕМ НУМЕРАЦИЮ: перегенерация по его правке не затирает
+        # то, что он уже видел на дашборде.
+        было = [int(os.path.basename(f)[len("ПРЕВЬЮ-"):-4])
+                for f in glob.glob(os.path.join(folder, VARIANTS,
+                                                "ПРЕВЬЮ-*.png"))
+                if os.path.basename(f)[len("ПРЕВЬЮ-"):-4].isdigit()]
+        return (max(было) + 1) if было else 1
+
+    ok = sum(1 for t in targets
+             if do_one(t, a.keep, a.pravka, _start(t)))
+    print("готово: %d из %d" % (ok, len(targets)))
+    return 0 if ok == len(targets) else 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())
